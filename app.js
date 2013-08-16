@@ -4,12 +4,13 @@
  */
 
 var express = require('express')
-  , routes = require('./routes')
-  , user = require('./routes/user')
   , http = require('http')
   , path = require('path');
 
 var app = express();
+app.config = require(path.join(__dirname, './config'));
+
+
 
 // all environments
 app.set('port', process.env.PORT || 3000);
@@ -27,11 +28,26 @@ if ('development' == app.get('env')) {
   app.use(express.errorHandler());
 }
 
-app.get('/', function(req, res) {
-	  res.render('books/bookshelf');
+//database connection
+var MongoClient = require('mongodb').MongoClient;
+MongoClient.connect(app.config.database.uri, function (error, db) {
+  if(error) {
+    console.log("Error connecting to database: " + error.toString().replace("Error: ",""));
+  } else {
+    console.log("Connected to DB " + 'mongodb://localhost:27017/bookdb');
+    
+    app.db = db;
+    app.models = {
+      BookModel : require('./lib/models/book')(app)
+    };
+    app.controllers = {
+      BookController : require('./lib/controllers/book')(app)
+    };
+    require('./lib/routes')(app);
+  }
 });
-app.get('/users', user.list);
-
 http.createServer(app).listen(app.get('port'), function(){
-  console.log('Express server listening on port ' + app.get('port'));
+    console.log('Express server listening on port ' + app.get('port'));
 });
+
+
